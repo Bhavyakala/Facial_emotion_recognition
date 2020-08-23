@@ -9,12 +9,16 @@ import dlib
 from PIL import Image
 from skimage import transform
 import json
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+tf.keras.backend.set_session(tf.Session(config=config))
 #loading the model architecture and weights
-json_file = open('model_best.json', 'r')
+json_file = open('model_feat4.json', 'r')
 loaded_model_json = json_file.read()
 model = model_from_json(loaded_model_json)
 json_file.close()
-model.load_weights("model_best_weights.h5")
+model.load_weights("model_feat4_weights.h5")
+# model = load_model('model2\model_65_0.007784269750118256.h5')
 def get_prediction(image,model):
     pred = model.predict(image)
     val = int(np.argmax(pred,axis=1))
@@ -22,7 +26,7 @@ def get_prediction(image,model):
     return e
 
 def get_key(val): 
-    d = {0:'Angry', 1: 'Disgust', 2:'Fear', 3:'Happy', 4:'Sad', 5:'Surprise', 6: 'Neutral'}
+    d = {0:'Angry', 1:'Fear', 2:'Happy', 3:'Sad', 4:'Surprise', 5: 'Neutral'}
     return d[val]
 def realtime():
     cap = cv2.VideoCapture(0)
@@ -42,27 +46,29 @@ def realtime():
         detections = net.forward()
         for i in range(0,detections.shape[2]):
             confidence = detections[0,0,i,2]
-            if confidence < 0.5:
+            if confidence < 0.7:
                 continue    
             box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
             (startX, startY, endX, endY) = box.astype("int")
+            print(startX,startY,endX,endY)
             image = frame[startY:endY, startX:endX]
-            face = cv2.cvtColor(cv2.resize(image,(48,48)), cv2.COLOR_BGR2GRAY)
+            print(image.shape)
+            if image.shape is not  None :
+                face = cv2.cvtColor(cv2.resize(image,(48,48)), cv2.COLOR_BGR2GRAY)
             roi = face.astype("float") / 255.0
             roi = np.reshape(roi,(1,48,48,1))
             # print(roi.shape)
             emotion = get_prediction(roi,model)
             # print(emotion)
             y = startY - 10 if startY - 10 > 10 else startY + 10
-            cv2.rectangle(frame,(startX,startY),(endX,endY),(255,0,0),2)
-            cv2.putText(frame, emotion, (startX,y),cv2.FONT_HERSHEY_COMPLEX,0.45,(255,0,0),2)
+            cv2.rectangle(frame,(startX,startY),(endX,endY),(255,0,0),1)
+            cv2.putText(frame, emotion, (startX,y),cv2.FONT_HERSHEY_COMPLEX,0.9,(255,0,0),2)
             # print(type(image))
         cv2.imshow("Frame" , frame)
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
     cv2.destroyAllWindows()   
     cap.release()
-
+    
 if __name__=='__main__':
     realtime()
-
